@@ -59,8 +59,8 @@ void init(int num) {
     mom = new vec[count];
     dips = new dipole[count];
     for (int i = 0; i < count; i++) {
-        dips[i].cx = genrand_res53()*width;
-        dips[i].cy = genrand_res53()*height;
+        dips[i].cx = genrand_res53()*(width-10)+5;
+        dips[i].cy = genrand_res53()*(height-10)+5;
         dips[i].vx = dips[i].vy = 0;
         dips[i].alpha = 0;
         dips[i].mag = 1;
