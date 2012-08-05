@@ -1,2 +1,2 @@
 #!/bin/bash
-g++ -march=native -O3 *.cpp -o dipoles
+g++ -march=native -O3 -lSDL *.cpp -o dipoles
