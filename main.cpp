@@ -55,6 +55,31 @@ void render(SDL_Surface *surface) {
     }
 }
 
+void init_crystal() {
+    init_genrand(time(0));
+    int numperside = 20;
+    count = (int)round(numperside*numperside);
+    debug("Using " << count << " dipoles");
+    field = new vec[count];
+    mom = new vec[count];
+    dips = new dipole[count];
+    for (int i = 0; i < count; i++) {
+        dips[i].cx = (i%numperside)/(double)(numperside-1)*(width-80)+40 + ((i/numperside)%2 ? 1.0/(double)(numperside-1)*(width-80)/2.0 : 0);
+        dips[i].cy = (i/numperside)/(double)(numperside-1)*(height-80)+40;
+        debug(dips[i].cx << ' ' << dips[i].cy);
+        dips[i].vx = dips[i].vy = 0;
+        dips[i].omega = 0;
+        dips[i].mass = 1;
+        dips[i].rotinertia = 1;
+        dips[i].mag = 20;
+        //dips[i].theta = (i/20) % 2 ? M_PI/4.0 : 3.0*M_PI/4.0;
+        //dips[i].theta = genrand_res53()*2*M_PI;
+        dips[i].theta = genrand_res53()*0.0-0.0+M_PI/2.0;
+        dips[i].size = 20;
+    }
+    debug("Dipoles initilized");
+}
+
 void init_grid() {
     init_genrand(time(0));
     int numperside = 20;
@@ -158,7 +183,7 @@ int main(int argc, char **argv) {
     if (!screen) fatal("Could not create window\n");
     SDL_WM_SetCaption("Dipoles by BenLand100", NULL);
     
-    init_grid();
+    init_crystal();
     
     int i = 0;
     SDL_Event event;
@@ -172,7 +197,7 @@ int main(int argc, char **argv) {
             } 
         }
         //SDL_Delay(10);
-        step(0.25,0.0);
+        step(0.25,0.0001);
         if (!(i++ % 100)) stats();
         render(screen);
         SDL_Flip(screen);
