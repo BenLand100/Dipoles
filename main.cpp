@@ -3,6 +3,7 @@
 #include "SDL/SDL.h"
 #include "rng.h"
 
+//Electric constants
 #define Ke 1
 
 #define fatal(why) { cout << "FATAL ERROR: " << why << '\n'; exit(1); }
@@ -13,9 +14,11 @@ typedef struct {
 } vec;
 
 typedef struct {
-    double cx, cy, theta;
-    double vx, vy, alpha;
-    double mag;
+    double cx, cy, theta; //positions
+    double vx, vy, omega; //velocities
+    double mag; //dipole moment
+    double mass; //inertial mass
+    double rotinertia; //rotational inertia
     double size;
 } dipole;
 
@@ -62,12 +65,26 @@ void init(int num) {
         dips[i].cx = genrand_res53()*(width-10)+5;
         dips[i].cy = genrand_res53()*(height-10)+5;
         dips[i].vx = dips[i].vy = 0;
-        dips[i].alpha = 0;
+        dips[i].omega = 0;
+        dips[i].mass = 1;
+        dips[i].rotinertia = 1;
         dips[i].mag = 1;
         dips[i].theta = genrand_res53()*2*M_PI;
         dips[i].size = 50;
     }
     debug("Dipoles initilized");
+}
+
+void stats() {
+	double kinetic = 0;
+	double rotational = 0;
+	double potential = 0;
+    for (int i = 0; i < count; i++) {
+    	kinetic += 0.5*dips[i].mass*(dips[i].vx*dips[i].vx + dips[i].vy*dips[i].vy);
+    	rotational += 0.5*dips[i].rotinertia*(dips[i].omega*dips[i].omega);
+    	potential -= dips[i].mag*(field[i].x*cos(dips[i].theta)+field[i].y*sin(dips[i].theta));
+    }
+    cout << "Energy (theoretical units)\nK: " << kinetic << "\nR: " << rotational << "\nU: " << potential << "\nE: " << (kinetic+rotational+potential) << '\n';
 }
 
 void step(double dt) {
@@ -95,8 +112,8 @@ void step(double dt) {
             field[i].y += Ke/mag/mag/mag*(3.0*pdotrhat*uy-mom[j].y);
         }
         double torque = mom[i].x*field[i].y-mom[i].y*field[i].x;
-        dips[i].alpha += torque * dt;
-        dips[i].theta += dips[i].alpha * dt;
+        dips[i].omega += torque/dips[i].rotinertia * dt;
+        dips[i].theta += dips[i].omega * dt;
         dips[i].cx += dips[i].vx * dt;
         dips[i].cy += dips[i].vy * dt; 
     }
@@ -115,6 +132,7 @@ int main(int argc, char **argv) {
     
     init(100);
     
+    int i = 0;
     SDL_Event event;
     bool running = true;
     debug("Entering main loop");
@@ -127,6 +145,7 @@ int main(int argc, char **argv) {
         }
         //SDL_Delay(10);
         step(1);
+        if (!(i++ % 100)) stats();
         render(screen);
         SDL_Flip(screen);
     }
