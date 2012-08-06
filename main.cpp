@@ -40,10 +40,10 @@ void draw_dipole(SDL_Surface *surface, dipole *dip) {
     //Uint32 color = 0xFFFFFF;//(int)fmod(dip->theta,2*M_PI)/(2*M_PI)*0xFFFFFF;
     double costheta = cos(dip->theta);
     double sintheta = sin(dip->theta);
-    for (double r = -5; r <= -0.5; r += 0.5) {
+    for (double r = -dip->size/2.0; r <= -0.5; r += 0.5) {
         pix[(int)(0.5+costheta*r)+(int)(0.5+sintheta*r)*width] = 0xFF0000;
     }
-    for (double r = 0.5; r <= 5; r += 0.5) {
+    for (double r = 0.5; r <= dip->size/2.0; r += 0.5) {
         pix[(int)(0.5+costheta*r)+(int)(0.5+sintheta*r)*width] = 0xFFFF;
     }
 }
@@ -55,22 +55,47 @@ void render(SDL_Surface *surface) {
     }
 }
 
-void init(int num) {
+void init_grid() {
+    init_genrand(time(0));
+    int numperside = 20;
+    count = (int)round(numperside*numperside);
+    debug("Using " << count << " dipoles");
+    field = new vec[count];
+    mom = new vec[count];
+    dips = new dipole[count];
+    for (int i = 0; i < count; i++) {
+        dips[i].cx = (i%numperside)/(double)(numperside-1)*(width-40)+20;
+        dips[i].cy = (i/numperside)/(double)(numperside-1)*(height-40)+20;
+        debug(dips[i].cx << ' ' << dips[i].cy);
+        dips[i].vx = dips[i].vy = 0;
+        dips[i].omega = 0;
+        dips[i].mass = 1;
+        dips[i].rotinertia = 1;
+        dips[i].mag = 20;
+        dips[i].theta = (i/20) % 2 ? M_PI/4.0 : 3.0*M_PI/4.0;
+        //dips[i].theta = genrand_res53()*2*M_PI;
+        //dips[i].theta = genrand_res53()*4.0-2.0+M_PI/2.0;
+        dips[i].size = 20;
+    }
+    debug("Dipoles initilized");
+}
+
+void init_rand(int num) {
     init_genrand(time(0));
     count = num;
     field = new vec[count];
     mom = new vec[count];
     dips = new dipole[count];
     for (int i = 0; i < count; i++) {
-        dips[i].cx = genrand_res53()*(width-10)+5;
-        dips[i].cy = genrand_res53()*(height-10)+5;
+        dips[i].cx = genrand_res53()*(width-20)+10;
+        dips[i].cy = genrand_res53()*(height-20)+10;
         dips[i].vx = dips[i].vy = 0;
         dips[i].omega = 0;
         dips[i].mass = 1;
         dips[i].rotinertia = 1;
         dips[i].mag = 1;
         dips[i].theta = genrand_res53()*2*M_PI;
-        dips[i].size = 50;
+        dips[i].size = 10;
     }
     debug("Dipoles initilized");
 }
@@ -87,7 +112,7 @@ void stats() {
     cout << "Energy (theoretical units)\nK: " << kinetic << "\nR: " << rotational << "\nU: " << potential << "\nE: " << (kinetic+rotational+potential) << '\n';
 }
 
-void step(double dt) {
+void step(double dt, double damping) {
     //debug("Stepping dynamics");
     for (int i = 0; i < count; i++) {
         field[i].x = 0;
@@ -112,8 +137,11 @@ void step(double dt) {
             field[i].y += Ke/mag/mag/mag*(3.0*pdotrhat*uy-mom[j].y);
         }
         double torque = mom[i].x*field[i].y-mom[i].y*field[i].x;
-        dips[i].omega += torque/dips[i].rotinertia * dt;
-        dips[i].theta += dips[i].omega * dt;
+        dips[i].omega += torque/dips[i].rotinertia*dt;
+        dips[i].omega -= dips[i].omega*damping*dt;
+        dips[i].theta += fmod(dips[i].omega*dt,2.0*M_PI);
+        dips[i].vx -= dips[i].vx*damping*dt;
+        dips[i].vy -= dips[i].vy*damping*dt;
         dips[i].cx += dips[i].vx * dt;
         dips[i].cy += dips[i].vy * dt; 
     }
@@ -130,7 +158,7 @@ int main(int argc, char **argv) {
     if (!screen) fatal("Could not create window\n");
     SDL_WM_SetCaption("Dipoles by BenLand100", NULL);
     
-    init(100);
+    init_grid();
     
     int i = 0;
     SDL_Event event;
@@ -144,7 +172,7 @@ int main(int argc, char **argv) {
             } 
         }
         //SDL_Delay(10);
-        step(1);
+        step(0.25,0.0);
         if (!(i++ % 100)) stats();
         render(screen);
         SDL_Flip(screen);
